@@ -20,7 +20,6 @@ dynamic-x 系列 使用足够简单的轻量级代码实现多种中间件能力
 提供以下功能支持：
 
 - 方法级限流 - 支持方法级别的限流。
-
 - 动态调整 - 应用运行时动态变更限流参数，（滑动窗口举例）包括不限于：窗口大小、最大通过数、黑白名单等。
 - 限流算法 - 内置三种限流算法：滑动窗口、令牌桶、漏桶算法。
 - 黑白名单 - 支持黑白名单过滤。
@@ -61,12 +60,12 @@ class Test{
  
 }
 ```
-配置文件
+配置文件(需要是bean对象)
 ```java
 
 //动态配置文件
 @DynamicValConfigMap(file = "limit.properties", prefix = "limit.something")
-public class MediaAddLimitConfig implements RdsLimitConfig {
+public class LimitConfig implements RdsLimitConfig {
     private final static String TENANT_ID = "tenantId";
     private final static String USER_ID = "userId";
     //#是否开启限流
@@ -153,7 +152,6 @@ public class MediaAddLimitConfig implements RdsLimitConfig {
  }
 
 }
- 
 ```
 ## 接入登记
 
