@@ -60,6 +60,16 @@ class Test{
  
 }
 ```
+提供jedis的生产者bean
+```java
+@Configuration
+class demo{
+ @Bean
+ public  Supplier<Jedis> jedisSupplier(RedisClient redisClient) {
+     return () -> redisClient.getJedis();
+ }
+}
+```
 配置文件(需要是bean对象)
 ```java
 
