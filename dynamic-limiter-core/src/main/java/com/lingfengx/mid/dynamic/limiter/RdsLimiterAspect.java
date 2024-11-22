@@ -11,6 +11,8 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.aop.framework.AopProxyUtils;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
@@ -50,6 +52,7 @@ public class RdsLimiterAspect {
             Object self = call.getThis();
             Object[] args = call.getArgs();
             Method method = signature.getMethod();
+            Class<?>[] parameterTypes = method.getParameterTypes();
             RdsLimit rdsLimit = method.getAnnotation(RdsLimit.class);
             boolean autoRelease = rdsLimit.autoRelease();
             LimiterAlgo algo = rdsLimit.algo();
@@ -108,7 +111,7 @@ public class RdsLimiterAspect {
                 else {
                     //统计失败的个数
                     //call fallBack
-                    return fallbackCall(rdsLimit, config, self, args);
+                    return fallbackCall(rdsLimit, config, self, parameterTypes, args);
                 }
             } else {
                 return call.proceed();
@@ -174,7 +177,7 @@ public class RdsLimiterAspect {
         return null;
     }
 
-    private Object fallbackCall(RdsLimit rdsLimit, RdsLimitConfig config, Object self, Object[] args) {
+    private Object fallbackCall(RdsLimit rdsLimit, RdsLimitConfig config, Object self, Class<?>[] parameterTypes, Object[] args) {
         try {
             String fallBack = config.getFallBack();
             if (StringUtils.isEmpty(fallBack)) {
@@ -187,7 +190,11 @@ public class RdsLimiterAspect {
             String[] split = fallBack.split("\\.");
             //如果只有一个参数，则执行在当前bean里的方法
             if (split.length == 1) {
-                return ReflectUtil.invoke(self, split[0], args);
+                String methodName = split[0];
+                Object realObj = AopProxyUtils.getSingletonTarget(self);
+                realObj = realObj == null ? self : realObj;
+                Method method = ReflectUtil.getMethod(realObj.getClass(), methodName, parameterTypes);
+                return ReflectUtil.invoke(realObj, method, args);
             } else {
                 //todo 调用 非本类方法
             }
