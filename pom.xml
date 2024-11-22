@@ -13,7 +13,7 @@
     <url>https://github.com/lingfengcoder/dynamic-limiter</url>
     <description>动态限流组件-支持:滑动窗口、令牌桶</description>
     <properties>
-        <revision>1.0.2-SNAPSHOT</revision>
+        <revision>1.0.2</revision>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -76,15 +76,13 @@
                 <version>1.6</version>
                 <executions>
                     <execution>
+                        <id>sign-artifacts</id>
                         <phase>verify</phase>
                         <goals>
                             <goal>sign</goal>
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
             </plugin>
             <!-- 老账号的配置：Gpg Signature -->
             <!--将组件部署到OSSRH并将其发布到Central Repository-->
@@ -174,6 +172,8 @@
             </activation>
             <properties>
                 <javadoc.opts>-Xdoclint:none</javadoc.opts>
+                <gpg.executable>gpg2</gpg.executable>
+                <gpg.passphrase>the_pass_phrase</gpg.passphrase>
             </properties>
         </profile>
     </profiles>
