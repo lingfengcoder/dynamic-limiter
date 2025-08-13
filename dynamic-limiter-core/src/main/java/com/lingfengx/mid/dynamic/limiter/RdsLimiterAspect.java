@@ -80,7 +80,7 @@ public class RdsLimiterAspect {
                 String key = RefUtil.transformKey(realClass, method, parameterTypes);
                 String encode = RefUtil.encode(realClass, method, args);
                 //添加任务到fallback队列
-                boolean add ;
+                boolean add;
                 if (rdsLimit.enableFastRetryQueue()) {
                     add = fallbackQueue.addFastQueue(key, encode, 0);
                 } else {
@@ -90,16 +90,17 @@ public class RdsLimiterAspect {
                     log.error("fallback queue add error {}", key);
                     return rdsLimiter.errorBackCall(method, config, self, args);
                 }
-            } else {
-                return fallbackInvoke(rdsLimit, config, self, parameterTypes, args);
             }
+            //执行fallback
+            return fallbackInvoke(rdsLimit, config, self, parameterTypes, args);
         } catch (Exception e) {
             log.error("[rdsLimit]{}{}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
         }
         return null;
     }
 
-    private Object fallbackInvoke(RdsLimit rdsLimit, RdsLimitConfig config, Object self, Class<?>[] parameterTypes, Object[] args) {
+    private Object fallbackInvoke(RdsLimit rdsLimit, RdsLimitConfig config, Object self, Class<?>[]
+            parameterTypes, Object[] args) {
         String fallBack = config.getFallBack();
         if (StringUtils.isEmpty(fallBack)) {
             fallBack = rdsLimit.fallBack();
