@@ -1,5 +1,6 @@
 package com.lingfengx.mid.dynamic.limiter.algo;
 
+import com.lingfengx.mid.dynamic.limiter.util.JedisInvoker;
 import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.Jedis;
 
@@ -12,8 +13,8 @@ public class SlidingWindowLimiter extends AbstractLimiter {
     private final static String REDIS_PREFIX = "rdsLimit";
     private final static String LUA_PATH = "META-INF/lua/sliding_window.lua";
 
-    public SlidingWindowLimiter(Supplier<Jedis> jedisSupplier) {
-        this.jedisSupplier = jedisSupplier;
+    public SlidingWindowLimiter(JedisInvoker jedisInvoker) {
+        this.jedisSupplier = jedisInvoker;
         loadScript(LUA_PATH);
     }
 

@@ -59,4 +59,10 @@ public class NoneClass implements RdsLimitConfig{
         return null;
     }
 
+    @Override
+    public boolean isDebug() {
+        return false;
+    }
+
+
 }

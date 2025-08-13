@@ -45,4 +45,13 @@ public @interface RdsLimit {
 
     //限流算法
     LimiterAlgo algo() default LimiterAlgo.SlidingWindow;
+
+    //是否开启内部降级队列，开启后，限流异常时，会将请求放入降级队列，随后被调度执行
+    boolean useFallbackQueue() default false;
+
+    //是否开启快速重试队列
+    boolean enableFastRetryQueue() default false;
+
+    //方法执行失败后，自动重试的次数
+    int errorRetryCount() default 0;
 }

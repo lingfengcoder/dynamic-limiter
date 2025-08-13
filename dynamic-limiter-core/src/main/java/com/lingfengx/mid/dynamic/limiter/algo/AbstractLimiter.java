@@ -1,6 +1,7 @@
 package com.lingfengx.mid.dynamic.limiter.algo;
 
 import com.lingfengx.mid.dynamic.limiter.util.ExceptionUtil;
+import com.lingfengx.mid.dynamic.limiter.util.JedisInvoker;
 import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisDataException;
@@ -14,7 +15,7 @@ import java.util.function.Supplier;
 @Slf4j
 public abstract class AbstractLimiter implements Limiter {
     protected static String scriptLua;
-    protected Supplier<Jedis> jedisSupplier;
+    protected JedisInvoker jedisSupplier;
 
     protected abstract String getPrefix();
 
@@ -24,7 +25,7 @@ public abstract class AbstractLimiter implements Limiter {
 
 
     public void loadScript(String path) {
-        try (Jedis jedis = jedisSupplier.get()) {
+        jedisSupplier.invoke(jedis -> {
             ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             URL url = classLoader.getResource(path);
             if (url != null) {
@@ -41,20 +42,14 @@ public abstract class AbstractLimiter implements Limiter {
                     log.error("redis-script-异常 {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
                 }
             }
-        } catch (Exception e) {
-            log.error("redis-script-异常 {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
-        }
+            return null;
+        });
+
     }
 
     @Override
     public boolean rdsLimit(List<String> keys, List<String> args) {
-        Object isAccess = null;
-        try (Jedis jedis = jedisSupplier.get()) {
-            isAccess = jedis.evalsha(scriptLua, keys, args);
-        } catch (JedisDataException e) {
-            // 处理脚本执行出错的情况
-            log.error("redis-script-异常 {} {}", e.getMessage(), e);
-        }
+        Object isAccess = jedisSupplier.invoke(jedis -> jedis.evalsha(scriptLua, keys, args), "redis-script-异常");
         if (isAccess == null || "0".equals(isAccess.toString())) {
             //throw new RuntimeException("redisLimitScript execute error key=" + keys);
             return false;
@@ -70,11 +65,9 @@ public abstract class AbstractLimiter implements Limiter {
      * @param value
      */
     public void release(String key, String value) {
-        key = generateKey(key);
-        try (Jedis jedis = jedisSupplier.get()) {
-            jedis.zrem(key, value);
-        } catch (Exception e) {
-            log.error("redis-异常 {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
-        }
+        jedisSupplier.invoke(jedis -> {
+            jedis.zrem(generateKey(key), value);
+            return null;
+        });
     }
 }

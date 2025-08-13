@@ -3,6 +3,7 @@ package com.lingfengx.mid.dynamic.limiter;
 import com.lingfengx.mid.dynamic.limiter.algo.Limiter;
 import com.lingfengx.mid.dynamic.limiter.algo.LimiterAlgo;
 import com.lingfengx.mid.dynamic.limiter.algo.SlidingWindowLimiter;
+import com.lingfengx.mid.dynamic.limiter.util.JedisInvoker;
 import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.Jedis;
 
@@ -22,7 +23,7 @@ public class DynamicRedisLimiter {
     private DynamicRedisLimiter() {
     }
 
-    public DynamicRedisLimiter(Supplier<Jedis> jedisSupplier) {
+    public DynamicRedisLimiter(JedisInvoker jedisSupplier) {
         // 限流器
         SlidingWindowLimiter slidingWindowLimiter = new SlidingWindowLimiter(jedisSupplier);
         limiterMap.put(LimiterAlgo.SlidingWindow, slidingWindowLimiter);

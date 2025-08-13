@@ -30,4 +30,5 @@ public interface RdsLimitConfig {
     Function<Map<String, Object>, Boolean> whiteListHandler();
 
     Function<Map<String, Object>, Boolean> blackListHandler();
+    boolean isDebug();
 }
