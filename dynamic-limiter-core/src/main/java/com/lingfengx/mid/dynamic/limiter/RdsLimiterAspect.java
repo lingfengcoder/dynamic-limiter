@@ -65,6 +65,9 @@ public class RdsLimiterAspect {
                 }
             }
 
+        } catch (Exception e) {
+            log.error("[RdsLimit] {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
+            throw e;
         } finally {
             long end = System.currentTimeMillis();
             log.info("[rdsLimit] cost {}", (end - begin));

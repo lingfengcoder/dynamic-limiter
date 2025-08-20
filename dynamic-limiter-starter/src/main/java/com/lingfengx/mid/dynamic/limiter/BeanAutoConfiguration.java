@@ -17,15 +17,23 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.io.ClassPathResource;
 import redis.clients.jedis.Jedis;
 
 import javax.annotation.PostConstruct;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.lingfengx.mid.dynamic.limiter.util.ProxyUtil.unwrapProxy;
 
 @Slf4j
-//@Configuration
+@Configuration
 public class BeanAutoConfiguration {
     @Lazy
     @Autowired
@@ -38,6 +46,11 @@ public class BeanAutoConfiguration {
         bucket.set("Hello Redisson!");
         String s = bucket.get();
         log.info("test Redisson value: {}", s);
+    }
+
+    @Bean
+    public BeanUtil beanUtil(Function<Class, Object> getBeanFunc) {
+        return new BeanUtil(getBeanFunc);
     }
 
 
@@ -61,12 +74,30 @@ public class BeanAutoConfiguration {
         DynamicRedisLimiter dynamicRedisLimiter = new DynamicRedisLimiter(jedisInvoker);
         RdsLimiter rdsLimiter = new RdsLimiter(dynamicRedisLimiter, true);
         //设置降级调度器
+
         RdsScheduler rdsScheduler = new RdsScheduler(fallbackQueue, methodKeyQueue, rdsLocker, rdsLimiter);
         //设置切面
+        printLOGO();
         return new RdsLimiterAspect(rdsLimiter, fallbackQueue);
     }
 
 
+    private void printLOGO() {
+        //从resources目录下读取banner.txt文件内容
+        try (InputStream inputStream = new ClassPathResource("/banner.txt").getInputStream()) {
+            StringBuilder builder = new StringBuilder();
+            try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+                char[] buffer = new char[1024];
+                int length;
+                while ((length = bufferedReader.read(buffer)) != -1) {
+                    builder.append(buffer, 0, length);
+                }
+            }
+            log.info(builder.toString());
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 
 
 }

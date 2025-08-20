@@ -160,7 +160,11 @@ public class RdsLimiter {
             throw new RuntimeException("RdsLimit.config must be not null!");
         }
         if (isSpringContext) {
-            RdsLimitConfig bean = SpringUtil.getBean(rdsLimit.configBean());
+            Class<? extends RdsLimitConfig> aClass = rdsLimit.configBean();
+            String simpleName = aClass.getSimpleName();
+            //首字母小写 simpleName
+            String beanName = simpleName.substring(0, 1).toLowerCase() + simpleName.substring(1);
+            RdsLimitConfig bean = SpringUtil.getBean(beanName, RdsLimitConfig.class);
             if (bean != null) {
                 return bean;
             }
@@ -175,7 +179,11 @@ public class RdsLimiter {
             throw new RuntimeException("RdsLimit.config must be not null!");
         }
         if (isSpringContext) {
-            RdsLimitConfig bean = SpringUtil.getBean(rdsLimit.configBean());
+            Class<? extends RdsLimitConfig> aClass = rdsLimit.configBean();
+            String simpleName = aClass.getSimpleName();
+            //首字母小写 simpleName
+            String beanName = simpleName.substring(0, 1).toLowerCase() + simpleName.substring(1);
+            RdsLimitConfig bean = SpringUtil.getBean(beanName, RdsLimitConfig.class);
             if (bean != null) {
                 return bean;
             }

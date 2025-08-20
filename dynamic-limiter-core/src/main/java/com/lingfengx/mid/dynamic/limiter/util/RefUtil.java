@@ -3,6 +3,7 @@ package com.lingfengx.mid.dynamic.limiter.util;
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.fastjson2.JSON;
+import com.lingfengx.mid.dynamic.limiter.BeanUtil;
 import com.lingfengx.mid.dynamic.limiter.args.Args;
 import com.lingfengx.mid.dynamic.limiter.args.InvokeParam;
 import com.lingfengx.mid.dynamic.limiter.args.MethodAndArgs;
@@ -71,6 +72,7 @@ public class RefUtil {
         methodAndArgs.setRealExecuteTime(System.currentTimeMillis());
         return JSON.toJSONString(methodAndArgs);
     }
+
     public static String encode(MethodAndArgs methodAndArgs) {
         return JSON.toJSONString(methodAndArgs);
     }
@@ -84,7 +86,10 @@ public class RefUtil {
 
     public static Object getRealObjFromSpringBean(Class clazz) {
         try {
-            Object bean = SpringUtil.getBean(clazz);
+            String simpleName = clazz.getSimpleName();
+            String beanName = simpleName.substring(0, 1).toLowerCase() + simpleName.substring(1);
+            Object bean = BeanUtil.getBean(clazz);
+//            Object bean = SpringUtil.getBean(beanName, clazz);
             Object realObj = AopProxyUtils.getSingletonTarget(bean);
             realObj = realObj == null ? bean : realObj;
             return realObj;
