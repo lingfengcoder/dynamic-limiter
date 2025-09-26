@@ -119,7 +119,11 @@ public class RdsLimiterAspect {
             Object realObj = AopProxyUtils.getSingletonTarget(self);
             realObj = realObj == null ? self : realObj;
             Method method = ReflectUtil.getMethod(realObj.getClass(), methodName, parameterTypes);
-            return ReflectUtil.invoke(realObj, method, args);
+            if (method != null) {
+                return ReflectUtil.invoke(realObj, method, args);
+            } else {
+                log.error("[rdsLimit]fallback method not found {} {} {} {}", self, realObj, methodName, parameterTypes);
+            }
         } else {
             //todo 调用 非本类方法
         }

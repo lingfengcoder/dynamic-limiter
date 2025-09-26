@@ -1,6 +1,7 @@
 package com.lingfengx.mid.dynamic.limiter;
 
 
+import cn.hutool.core.util.RandomUtil;
 import com.lingfengx.mid.dynamic.limiter.util.JedisInvoker;
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,11 +52,11 @@ public class FallbackQueue {
         try {
             return jedisInvoker.invoke(jedis -> {
                 //预期执行的时间 score
-                long nextTime = 0;
+                long nextTime = System.currentTimeMillis() + RandomUtil.randomLong(500, 3000);
                 if (retryCount < timeBuckets.length) {
-                    nextTime = System.currentTimeMillis() + timeBuckets[retryCount];
+                    nextTime = nextTime + timeBuckets[retryCount];
                 } else {
-                    nextTime = System.currentTimeMillis() + timeBuckets[retryCount % timeBuckets.length];
+                    nextTime = nextTime + timeBuckets[retryCount % timeBuckets.length];
                 }
                 // 增加key的待执行任务数(原子性)
                 methodKeyQueue.increase(key);

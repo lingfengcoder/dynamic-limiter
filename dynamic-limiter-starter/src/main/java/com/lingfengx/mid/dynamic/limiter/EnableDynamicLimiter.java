@@ -8,10 +8,11 @@ import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;
 
+
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@ComponentScans({@ComponentScan("com.lingfengx.mid.dynamic.limiter"), @ComponentScan("cn.hutool.extra.spring")})
+@Import(BeanAutoConfiguration.class)
 public @interface EnableDynamicLimiter {
     int redisDb() default 0;
 }

@@ -52,9 +52,21 @@ public class RdsLimiter {
                 return true;
             }
             //动态获取redis的key
+            DLimiter dLimiter = getLimiter(config, params);
+
             key = getRealKey(config, key, params);
             int boxLen = getBoxLen(rdsLimit, config);
             int boxTime = getBoxTime(rdsLimit, config);
+            //优先使用dLimiter
+            if (dLimiter != null) {
+                if (!dLimiter.isLimited()) {
+                    //不需要限流
+                    return true;
+                }
+                key = dLimiter.getKey();
+                boxLen = dLimiter.getBoxLen();
+                boxTime = dLimiter.getBoxTime();
+            }
             boolean success = false;
             String accessKey = null;
             Limiter limiter = null;
@@ -122,6 +134,13 @@ public class RdsLimiter {
         return key;
     }
 
+
+    private DLimiter getLimiter(RdsLimitConfig config, Map<String, Object> params) {
+        if (config == null || config.getDynamicLimiter() == null) {
+            return null;
+        }
+        return config.getDynamicLimiter().apply(params);
+    }
 
     /**
      * 黑白名单检测

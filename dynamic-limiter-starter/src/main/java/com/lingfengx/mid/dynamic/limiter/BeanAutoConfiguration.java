@@ -49,6 +49,12 @@ public class BeanAutoConfiguration {
     }
 
     @Bean
+    public DynamicLimiterBeanPostProcessor dynamicLimiterBeanPostProcessor() {
+        return new DynamicLimiterBeanPostProcessor();
+    }
+
+
+    @Bean
     public BeanUtil beanUtil(Function<Class, Object> getBeanFunc) {
         return new BeanUtil(getBeanFunc);
     }

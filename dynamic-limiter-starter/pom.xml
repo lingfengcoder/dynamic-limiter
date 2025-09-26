@@ -26,5 +26,10 @@
             <version>1.18.12</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.github.lingfengcoder</groupId>
+            <artifactId>dynamic-config-core</artifactId>
+            <version>1.0.5</version>
+        </dependency>
     </dependencies>
 </project>
