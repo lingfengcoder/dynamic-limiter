@@ -96,16 +96,16 @@
                 </configuration>
             </plugin>-->
             <!--新账号的配置：将组件部署到OSSRH并将其发布到Central Repository-->
-<!--            <plugin>-->
-<!--                <groupId>org.sonatype.central</groupId>-->
-<!--                <artifactId>central-publishing-maven-plugin</artifactId>-->
-<!--                <version>0.4.0</version>-->
-<!--                <extensions>true</extensions>-->
-<!--                <configuration>-->
-<!--                    <publishingServerId>ossrh</publishingServerId>-->
-<!--                    <tokenAuth>true</tokenAuth>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.4.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>ossrh</publishingServerId>
+                    <tokenAuth>true</tokenAuth>
+                </configuration>
+            </plugin>
 
 
             <plugin>
@@ -175,23 +175,13 @@
             </properties>
         </profile>
     </profiles>
-<!--    <distributionManagement>-->
-<!--        <snapshotRepository>-->
-<!--            &lt;!&ndash; 与settings.xml的server.id保持一致 &ndash;&gt;-->
-<!--            <id>ossrh</id>-->
-<!--            <url>https://central.sonatype.com/</url>-->
-<!--        </snapshotRepository>-->
-<!--    </distributionManagement>-->
-
     <distributionManagement>
-        <repository>
-            <id>private-releases</id>
-            <url>http://116.62.222.54/repository/maven-releases</url>
-        </repository>
         <snapshotRepository>
-            <id>private-snapshots</id>
-            <url>http://116.62.222.54/repository/maven-snapshots</url>
+            <!-- 与settings.xml的server.id保持一致 -->
+            <id>ossrh</id>
+            <url>https://central.sonatype.com/</url>
         </snapshotRepository>
     </distributionManagement>
+
 
 </project>
