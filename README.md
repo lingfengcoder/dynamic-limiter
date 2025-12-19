@@ -60,107 +60,41 @@ class Test{
  
 }
 ```
-提供jedis的生产者bean
-```java
-@Configuration
-class demo{
- @Bean
- public  Supplier<Jedis> jedisSupplier(RedisClient redisClient) {
-     return () -> redisClient.getJedis();
- }
-}
-```
+
 配置文件(需要是bean对象)
 ```java
 
 //动态配置文件
 @DynamicValConfigMap(file = "limit.properties", prefix = "limit.something")
-public class LimitConfig implements RdsLimitConfig {
-    private final static String TENANT_ID = "tenantId";
-    private final static String USER_ID = "userId";
-    //#是否开启限流
-    private boolean enable = false;
-    //#滑动窗口的大小
-    private int boxLen = 10;
-    //#滑动窗口的时间
-    private long boxTime = 5000;
-    //需要限流的租户
-    private List<String> tenantIds = Collections.emptyList();
-    //需要限流的用户
-    private List<String> userIds = Collections.emptyList();
+public class LimitConfig  extends AbstractRdsLimitConfig {
+ @Value("true")
+ private boolean enable;
+ //#滑动窗口的大小
+ @Value("10")
+ private int boxLen;
+ //#滑动窗口的时间
+ @Value("10000")
+ private long boxTime;
 
-    private boolean blackEnable = false;
-
-    @Override
-    public boolean getEnable() {
-        return enable;
-    }
-
-    @Override
-    public Function<Map<String, Object>, String> dynamicKey() {
-        return map -> {
-            //map 中包含spel表达式中的参数
-            StringBuilder builder = new StringBuilder();
-            return builder.toString();
-        };
-    }
-
-    @Override
-    public boolean whiteEnable() {
-        return false;
-    }
-
-    @Override
-    public boolean blackEnable() {
-        return blackEnable;
-    }
-
-
-    /**
-     * 不限流操作
-     *
-     * @return
-     */
-    @Override
-    public Function<Map<String, Object>, Boolean> whiteListHandler() {
-        return null;
-    }
-
-    /**
-     * 黑名单操作:需要限流的
-     *
-     * @return
-     */
-    @Override
-    public Function<Map<String, Object>, Boolean> blackListHandler() {
-        return map -> {
-            Object tenantId = map.get(TENANT_ID);
-            Object userId = map.get(USER_ID);
-            if (userId != null && tenantIds.contains(userId)) {
-                return true;
-            }
-            if (projectId != null && projectIds.contains(projectId)) {
-                return true;
-            }
-            //不需要限流
-            return false;
-        };
-    }
- @Override
- public long getTimeout() {
-  return 0;
- }
 
  @Override
- public String getFallBack() {
-  return null;
+ public Function<Map<String, Object>, DLimiter> getDynamicLimiter() {
+  return map -> {
+   Object tenantId = findParam(map, "tenantId");
+   Object paramA = findParam(map, "paramA");
+   StringBuilder key = new StringBuilder("xxxLimitConfig");
+   if (tenantId != null) {
+    key.append("_").append(tenantId);
+   }
+   if (qaBotId != null) {
+    key.append("_").append(paramA);
+   }
+   DLimiter limiter = new DLimiter();
+   limiter.setKey(key.toString())
+           .setLimited( enable).setBoxLen(boxLen).setBoxTime(boxTime);
+   return limiter;
+  };
  }
-
- @Override
- public String getErrorBack() {
-  return null;
- }
-
 }
 ```
 ## 接入登记

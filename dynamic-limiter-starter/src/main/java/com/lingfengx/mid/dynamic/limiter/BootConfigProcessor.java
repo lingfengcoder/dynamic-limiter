@@ -25,6 +25,17 @@ public class BootConfigProcessor implements EnvironmentPostProcessor {
             //加载所有注解定义的路径和类
             if (clazz.isAnnotationPresent(EnableDynamicLimiter.class)) {
                 enableDynamicLimiter = clazz.getAnnotation(EnableDynamicLimiter.class);
+                // 设置命名空间
+                String namespace = enableDynamicLimiter.namespace();
+                if (namespace != null && !namespace.trim().isEmpty()) {
+                    LimiterContext.setNamespace(namespace);
+                } else {
+                    // 尝试从 spring.application.name 获取
+                    String appName = environment.getProperty("spring.application.name");
+                    if (appName != null && !appName.trim().isEmpty()) {
+                        LimiterContext.setNamespace(appName);
+                    }
+                }
             }
         }
     }

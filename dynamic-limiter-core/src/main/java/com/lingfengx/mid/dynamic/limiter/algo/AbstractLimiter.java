@@ -1,61 +1,44 @@
 package com.lingfengx.mid.dynamic.limiter.algo;
 
-import com.lingfengx.mid.dynamic.limiter.util.ExceptionUtil;
-import com.lingfengx.mid.dynamic.limiter.util.JedisInvoker;
+import com.lingfengx.mid.dynamic.limiter.LimiterContext;
+import com.lingfengx.mid.dynamic.limiter.util.RedissonInvoker;
 import lombok.extern.slf4j.Slf4j;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.exceptions.JedisDataException;
+import org.redisson.api.RScoredSortedSet;
+import org.redisson.client.codec.StringCodec;
 
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 @Slf4j
 public abstract class AbstractLimiter implements Limiter {
-    protected static String scriptLua;
-    protected JedisInvoker jedisSupplier;
+    protected static String scriptSha;
+    protected RedissonInvoker redissonInvoker;
 
     protected abstract String getPrefix();
 
+    /**
+     * 生成带命名空间的限流 key
+     */
     protected String generateKey(String key) {
-        return getPrefix() + ":" + key;
+        return LimiterContext.buildKey(getPrefix() + ":" + key);
     }
 
-
     public void loadScript(String path) {
-        jedisSupplier.invoke(jedis -> {
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-            URL url = classLoader.getResource(path);
-            if (url != null) {
-                try (InputStream inputStream = url.openStream()) {
-                    byte[] buffer = new byte[(int) url.getFile().length()];
-                    // 读取文件内容
-                    int read = 0;
-                    StringBuilder builder = new StringBuilder();
-                    while ((read = inputStream.read(buffer)) > 0) {
-                        builder.append(new String(buffer, 0, read, StandardCharsets.UTF_8));
-                    }
-                    scriptLua = jedis.scriptLoad(builder.toString());
-                } catch (Exception e) {
-                    log.error("redis-script-异常 {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
-                }
-            }
-            return null;
-        });
-
+        scriptSha = redissonInvoker.loadScript(path);
+        if (scriptSha == null) {
+            log.error("Failed to load lua script: {}", path);
+        }
     }
 
     @Override
     public boolean rdsLimit(List<String> keys, List<String> args) {
-        Object isAccess = jedisSupplier.invoke(jedis -> jedis.evalsha(scriptLua, keys, args), "redis-script-异常");
+        List<Object> keyList = new ArrayList<>(keys);
+        Object[] argArray = args.toArray(new String[0]);
+        Object isAccess = redissonInvoker.evalSha(scriptSha, keyList, argArray);
         if (isAccess == null || "0".equals(isAccess.toString())) {
-            //throw new RuntimeException("redisLimitScript execute error key=" + keys);
             return false;
         }
         return "1".equals(isAccess.toString());
-//        return Boolean.parseBoolean(isAccess.toString());
     }
 
     /**
@@ -65,9 +48,7 @@ public abstract class AbstractLimiter implements Limiter {
      * @param value
      */
     public void release(String key, String value) {
-        jedisSupplier.invoke(jedis -> {
-            jedis.zrem(generateKey(key), value);
-            return null;
-        });
+        RScoredSortedSet<String> set = redissonInvoker.getClient().getScoredSortedSet(generateKey(key), StringCodec.INSTANCE);
+        set.remove(value);
     }
 }

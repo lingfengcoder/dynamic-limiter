@@ -16,7 +16,7 @@ public class DLimiter {
     //需要限流的数量
     private int boxLen;
     //限流的时间窗口
-    private int boxTime;
+    private long boxTime;
     //是否组要限流
     private boolean limited;
 }

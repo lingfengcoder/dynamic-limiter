@@ -56,7 +56,7 @@ public class RdsLimiter {
 
             key = getRealKey(config, key, params);
             int boxLen = getBoxLen(rdsLimit, config);
-            int boxTime = getBoxTime(rdsLimit, config);
+            long boxTime = getBoxTime(rdsLimit, config);
             //优先使用dLimiter
             if (dLimiter != null) {
                 if (!dLimiter.isLimited()) {
@@ -225,11 +225,11 @@ public class RdsLimiter {
         return rdsLimit.key();
     }
 
-    private int getBoxTime(RdsLimit rdsLimit, RdsLimitConfig config) {
+    private long getBoxTime(RdsLimit rdsLimit, RdsLimitConfig config) {
         //通过配置config的方式获取
         //  Integer configData = readOtherConfig(rdsLimit, rdsLimit.DBoxTime());
         //通过直接指定的方式获取 beanName.key
-        return config == null ? (int) rdsLimit.boxTime() : (int) config.getBoxTime();
+        return config == null ?  rdsLimit.boxTime() :  config.getBoxTime();
     }
 
 

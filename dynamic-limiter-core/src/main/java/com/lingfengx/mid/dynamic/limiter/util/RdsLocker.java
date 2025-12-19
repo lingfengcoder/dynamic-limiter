@@ -1,9 +1,12 @@
 package com.lingfengx.mid.dynamic.limiter.util;
 
 import cn.hutool.core.thread.ThreadUtil;
+import com.lingfengx.mid.dynamic.limiter.LimiterContext;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.Redisson;
 import org.redisson.api.RLock;
+import org.redisson.api.RScoredSortedSet;
+import org.redisson.api.RedissonClient;
+import org.redisson.client.codec.StringCodec;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -11,22 +14,26 @@ import java.util.function.Consumer;
 @Slf4j
 public class RdsLocker {
 
-
-    private final static String lockKeyPrefix = "rds:limiter:lock:";
+    private final static String LOCK_KEY_PREFIX = "lock:";
     public static volatile boolean isDebug = false;
     //增强版的threadlocal
     private static final InheritableThreadLocal<Boolean> debugThreadLocal = new InheritableThreadLocal<>();
-    protected Redisson redisson;
-    protected JedisInvoker jedisInvoker;
+    protected RedissonClient redissonClient;
 
-    public RdsLocker(Redisson redisson, JedisInvoker jedisInvoker) {
-        this.redisson = redisson;
-        this.jedisInvoker = jedisInvoker;
+    public RdsLocker(RedissonClient redissonClient) {
+        this.redissonClient = redissonClient;
+    }
+
+    /**
+     * 获取带命名空间的锁 key
+     */
+    private String buildLockKey(String taskType, String taskId) {
+        return LimiterContext.buildKey(LOCK_KEY_PREFIX + taskType + ":" + taskId);
     }
 
 
     public boolean lock(String taskId, String taskType) {
-        RLock lock = redisson.getLock(lockKeyPrefix + taskType + ":" + taskId);
+        RLock lock = redissonClient.getLock(buildLockKey(taskType, taskId));
         try {
             //线程不等待，且启用看门狗
             return lock.tryLock(0, -1, TimeUnit.SECONDS);
@@ -36,7 +43,7 @@ public class RdsLocker {
     }
 
     public void unlock(String taskId, String taskType) {
-        RLock lock = redisson.getLock(lockKeyPrefix + taskType + ":" + taskId);
+        RLock lock = redissonClient.getLock(buildLockKey(taskType, taskId));
         lock.unlock();
     }
 
@@ -87,12 +94,14 @@ public class RdsLocker {
 
 
     protected void delTaskFromRedis(String queueName, String data) {
-        jedisInvoker.invoke(jedis -> jedis.zrem(queueName, data));
+        RScoredSortedSet<String> set = redissonClient.getScoredSortedSet(queueName, StringCodec.INSTANCE);
+        set.remove(data);
     }
 
 
     protected boolean existTaskInRedis(String queueName, String data) {
-        return jedisInvoker.invoke(jedis -> jedis.zscore(queueName, data) != null);
+        RScoredSortedSet<String> set = redissonClient.getScoredSortedSet(queueName, StringCodec.INSTANCE);
+        return set.getScore(data) != null;
     }
 
 }

@@ -1,26 +1,39 @@
 package com.lingfengx.mid.dynamic.limiter;
 
-import com.lingfengx.mid.dynamic.limiter.util.JedisInvoker;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RAtomicLong;
+import org.redisson.api.RScoredSortedSet;
+import org.redisson.api.RedissonClient;
+import org.redisson.client.codec.StringCodec;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 
 @Slf4j
 public class MethodKeyQueue {
 
+    private final static String QUEUE_NAME = "method_key_queue";
 
-    private final static String QUEUE_NAME = "rds:method_key_queue:";
+    protected RedissonClient redissonClient;
 
-
-    protected JedisInvoker jedisInvoker;
-
-    public MethodKeyQueue(JedisInvoker jedisInvoker) {
-        this.jedisInvoker = jedisInvoker;
+    public MethodKeyQueue(RedissonClient redissonClient) {
+        this.redissonClient = redissonClient;
     }
 
-    private String getQueueName(String methodKey) {
-        return QUEUE_NAME + methodKey;
+    /**
+     * 获取带命名空间的队列名
+     */
+    private String getQueueKey() {
+        return LimiterContext.buildQueueKey(QUEUE_NAME);
+    }
+
+    /**
+     * 获取带命名空间的方法计数器 key
+     */
+    private String getCounterKey(String methodKey) {
+        return LimiterContext.buildQueueKey(QUEUE_NAME + ":counter:" + methodKey);
     }
 
     /**
@@ -32,11 +45,11 @@ public class MethodKeyQueue {
      */
     public boolean increase(String methodKey) {
         try {
-            return jedisInvoker.invoke(jedis -> {
-                Long val = jedis.incr(getQueueName(methodKey));
-                jedis.zadd(QUEUE_NAME, val, methodKey);
-                return true;
-            });
+            RAtomicLong atomicLong = redissonClient.getAtomicLong(getCounterKey(methodKey));
+            long val = atomicLong.incrementAndGet();
+            RScoredSortedSet<String> set = redissonClient.getScoredSortedSet(getQueueKey(), StringCodec.INSTANCE);
+            set.add(val, methodKey);
+            return true;
         } catch (Exception e) {
             log.error("increase methodKey queue error", e);
             return false;
@@ -44,18 +57,37 @@ public class MethodKeyQueue {
     }
 
     public void reduce(String methodKey) {
-        jedisInvoker.invoke(jedis -> {
-            Long val = jedis.decr(getQueueName(methodKey));
-            jedis.zadd(QUEUE_NAME, val, methodKey);
-            return true;
-        });
+        RAtomicLong atomicLong = redissonClient.getAtomicLong(getCounterKey(methodKey));
+        long val = atomicLong.decrementAndGet();
+        RScoredSortedSet<String> set = redissonClient.getScoredSortedSet(getQueueKey(), StringCodec.INSTANCE);
+        set.add(val, methodKey);
     }
 
     /**
      * 获取降级的任务key列表
+     * 支持读取历史数据：如果启用了命名空间，也会尝试读取旧格式的数据
      */
     public List<String> get(int limit) {
-        return jedisInvoker.invoke(jedis -> jedis.zrevrangeByScore(QUEUE_NAME, "+inf", "-inf", 0, limit));
+        List<String> result = new ArrayList<>();
+        
+        // 1. 读取新格式的队列
+        RScoredSortedSet<String> set = redissonClient.getScoredSortedSet(getQueueKey(), StringCodec.INSTANCE);
+        Collection<String> newData = set.valueRangeReversed(0, limit - 1);
+        result.addAll(newData);
+        
+        // 2. 如果启用了命名空间，也读取旧格式的历史数据
+        if (LimiterContext.isNamespaceEnabled()) {
+            String legacyKey = LimiterContext.getLegacyQueueKey(QUEUE_NAME);
+            RScoredSortedSet<String> legacySet = redissonClient.getScoredSortedSet(legacyKey, StringCodec.INSTANCE);
+            Collection<String> legacyData = legacySet.valueRangeReversed(0, limit - 1);
+            // 添加不重复的历史数据
+            for (String item : legacyData) {
+                if (!result.contains(item) && result.size() < limit) {
+                    result.add(item);
+                }
+            }
+        }
+        
+        return result;
     }
-
 }
