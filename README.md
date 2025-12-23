@@ -70,7 +70,7 @@ spring 环境可以直接引入starter
 ```
 启动类增加开启注解
 ```java
-@EnableDynamicLimiter
+@EnableDynamicLimiter(namespace="demo-appname")
 public class ServletInitializer extends SpringBootServletInitializer {
  public static void main(String[] args) {
   SpringApplication.run(ServletInitializer.class, args);
