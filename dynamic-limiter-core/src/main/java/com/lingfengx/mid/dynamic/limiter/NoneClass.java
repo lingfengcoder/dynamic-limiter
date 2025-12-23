@@ -59,4 +59,15 @@ public class NoneClass implements RdsLimitConfig{
         return null;
     }
 
+    @Override
+    public boolean isDebug() {
+        return false;
+    }
+
+    @Override
+    public Function<Map<String, Object>, DLimiter> getDynamicLimiter() {
+        return null;
+    }
+
+
 }

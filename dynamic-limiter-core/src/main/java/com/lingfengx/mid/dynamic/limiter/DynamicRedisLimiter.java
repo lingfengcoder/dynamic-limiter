@@ -3,12 +3,12 @@ package com.lingfengx.mid.dynamic.limiter;
 import com.lingfengx.mid.dynamic.limiter.algo.Limiter;
 import com.lingfengx.mid.dynamic.limiter.algo.LimiterAlgo;
 import com.lingfengx.mid.dynamic.limiter.algo.SlidingWindowLimiter;
+import com.lingfengx.mid.dynamic.limiter.util.RedissonInvoker;
 import lombok.extern.slf4j.Slf4j;
-import redis.clients.jedis.Jedis;
+import org.redisson.api.RedissonClient;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Supplier;
 
 
 /**
@@ -22,9 +22,11 @@ public class DynamicRedisLimiter {
     private DynamicRedisLimiter() {
     }
 
-    public DynamicRedisLimiter(Supplier<Jedis> jedisSupplier) {
+    public DynamicRedisLimiter(RedissonClient redissonClient) {
+        // 创建 RedissonInvoker
+        RedissonInvoker redissonInvoker = new RedissonInvoker(redissonClient);
         // 限流器
-        SlidingWindowLimiter slidingWindowLimiter = new SlidingWindowLimiter(jedisSupplier);
+        SlidingWindowLimiter slidingWindowLimiter = new SlidingWindowLimiter(redissonInvoker);
         limiterMap.put(LimiterAlgo.SlidingWindow, slidingWindowLimiter);
     }
 

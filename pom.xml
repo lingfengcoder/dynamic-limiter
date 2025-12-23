@@ -8,12 +8,12 @@
         <module>dynamic-limiter-core</module>
         <module>dynamic-limiter-starter</module>
     </modules>
-
+    <name>dynamic-limiter</name>
     <packaging>pom</packaging>
     <url>https://github.com/lingfengcoder/dynamic-limiter</url>
     <description>动态限流组件-支持:滑动窗口、令牌桶</description>
     <properties>
-        <revision>1.0.0</revision>
+        <revision>2.0.4-RELEASE</revision>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -23,7 +23,9 @@
         <aspectj.version>1.9.7</aspectj.version>
         <spring.version>5.0.9.RELEASE</spring.version>
         <slf4j.version>1.7.36</slf4j.version>
-        <jedis.version>2.9.0</jedis.version>
+        <jedis.version>4.3.2</jedis.version>
+        <fastjson.version>2.0.57</fastjson.version>
+        <redisson.version>3.17.7</redisson.version>
     </properties>
 
     <build>
@@ -32,10 +34,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
-                </configuration>
             </plugin>
             <!-- Source -->
             <plugin>
@@ -76,6 +74,7 @@
                 <version>1.6</version>
                 <executions>
                     <execution>
+                        <id>sign-artifacts</id>
                         <phase>verify</phase>
                         <goals>
                             <goal>sign</goal>
@@ -157,11 +156,11 @@
 
     <scm>
         <!--项目访问url -->
-        <url>https://github.com/lingfengcoder/dynamic-config</url>
+        <url>https://github.com/lingfengcoder/dynamic-limiter</url>
         <!--项目访问url.git结尾 -->
-        <connection>scm:git:https://github.com/lingfengcoder/dynamic-config.git</connection>
+        <connection>scm:git:https://github.com/lingfengcoder/dynamic-limiter.git</connection>
         <!--项目访问url.git结尾 -->
-        <developerConnection>scm:git:https://github.com/lingfengcoder/dynamic-config.git</developerConnection>
+        <developerConnection>scm:git:https://github.com/lingfengcoder/dynamic-limiter.git</developerConnection>
     </scm>
     <profiles>
         <profile>
@@ -171,6 +170,8 @@
             </activation>
             <properties>
                 <javadoc.opts>-Xdoclint:none</javadoc.opts>
+                <gpg.executable>gpg2</gpg.executable>
+                <gpg.passphrase>the_pass_phrase</gpg.passphrase>
             </properties>
         </profile>
     </profiles>
@@ -181,5 +182,6 @@
             <url>https://central.sonatype.com/</url>
         </snapshotRepository>
     </distributionManagement>
+
 
 </project>
