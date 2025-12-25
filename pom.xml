@@ -13,7 +13,7 @@
     <url>https://github.com/lingfengcoder/dynamic-limiter</url>
     <description>动态限流组件-支持:滑动窗口、令牌桶</description>
     <properties>
-        <revision>2.0.4-RELEASE</revision>
+        <revision>2.0.5-SNAPSHOT</revision>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -23,7 +23,6 @@
         <aspectj.version>1.9.7</aspectj.version>
         <spring.version>5.0.9.RELEASE</spring.version>
         <slf4j.version>1.7.36</slf4j.version>
-        <jedis.version>4.3.2</jedis.version>
         <fastjson.version>2.0.57</fastjson.version>
         <redisson.version>3.17.7</redisson.version>
     </properties>
@@ -182,6 +181,7 @@
             <url>https://central.sonatype.com/</url>
         </snapshotRepository>
     </distributionManagement>
+
 
 
 </project>
