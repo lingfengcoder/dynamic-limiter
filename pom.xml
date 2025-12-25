@@ -13,7 +13,7 @@
     <url>https://github.com/lingfengcoder/dynamic-limiter</url>
     <description>动态限流组件-支持:滑动窗口、令牌桶</description>
     <properties>
-        <revision>2.0.5-SNAPSHOT</revision>
+        <revision>2.0.6</revision>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
