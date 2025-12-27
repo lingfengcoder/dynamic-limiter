@@ -25,40 +25,6 @@ dynamic-x 系列 使用足够简单的轻量级代码实现多种中间件能力
 - 黑白名单 - 支持黑白名单过滤。
 - SPEL支持 - 支持SPEL表达式，可根据方法参数动态限流
 
-2.0新特性
-- 支持内部降级队列
-- 支持分布式调度任务执行
-- 支持设置方法执行异常最大重试次数
-```java
-@RdsLimit(key = "demoLimit(#mediaInfo.tenantId,#mediaInfo.projectId)", configBean = MediaAddLimitConfig.class, errorRetryCount = 3, useFallbackQueue = true, enableFastRetryQueue = true)
-    public Object demoLimit(MediaInfo mediaInfo, String projectId, MediaAdminInfoBO mediaInfoBO, String time, String id) throws InterruptedException {
-}
-```
-新增注解配置
-```java
-   
-    //是否开启内部降级队列，开启后，限流异常时，会将请求放入降级队列，随后被调度执行
-    boolean useFallbackQueue() default false;
-
-    //是否开启快速重试队列
-    boolean enableFastRetryQueue() default false;
-
-    //方法执行失败后，自动重试的次数
-    int errorRetryCount() default 0;
-```  
-
-2.0引入了redisson，需要对redisson进行配置（ps：不会还有项目没有用redisson吧）
-```yml
-redisson:
-  config:
-    singleServerConfig:
-      address: "redis://redis.host:port"
-      password: password # Redisson 的密码配置
-      database: 9 # 如果需要指定数据库
-      connectionPoolSize: 64 # 连接池大小
-      connectionMinimumIdleSize: 32 # 最小空闲连接数
-```
-
 ## 快速开始
 spring 环境可以直接引入starter
 ```xml

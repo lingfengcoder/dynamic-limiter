@@ -40,35 +40,30 @@ public class RdsLimiterAspect {
             Object[] args = call.getArgs();
             Method method = signature.getMethod();
             Class<?>[] parameterTypes = method.getParameterTypes();
-            {
-                RdsLimit rdsLimit = method.getAnnotation(RdsLimit.class);
-                RdsLimitConfig config = RdsLimiter.getConfig(rdsLimit, self);
-                if (rdsLimiter.doLimit(self, method, args)) {
-                    try {
-                        //通过限流
-                        return call.proceed();
-                    } catch (Throwable e) {
-                        log.error("[RdsLimit]find error occur {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
-                        //call errorBack
-                        return rdsLimiter.errorBackCall(method, config, self, args);
-                    } finally {
-//                        Limiter limiter = dynamicRedisLimiter.switchLimiter(algo);
-//                        if (autoRelease && limiter != null) {
-//                            //释放资源
-//                            limiter.release(key, accessKey);
-//                        }
-                    }
-                } else {
-                    //统计失败的个数
-                    //call fallBack
-                    return fallbackCall(config, self, method, parameterTypes, args);
+
+            RdsLimit rdsLimit = method.getAnnotation(RdsLimit.class);
+            RdsLimitConfig config = RdsLimiter.getConfig(rdsLimit, self);
+
+            // 统一限流入口（滑动窗口/令牌桶/信号量 都在 doLimit 中处理）
+            if (rdsLimiter.doLimit(self, method, args)) {
+                try {
+                    //通过限流，执行业务逻辑
+                    return call.proceed();
+                } catch (Throwable e) {
+                    log.error("[RdsLimit]find error occur {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
+                    return rdsLimiter.errorBackCall(method, config, self, args);
                 }
+            } else {
+                //限流失败，走降级
+                return fallbackCall(config, self, method, parameterTypes, args);
             }
 
         } catch (Exception e) {
             log.error("[RdsLimit] {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
             throw e;
         } finally {
+            // 释放限流资源（信号量模式会释放，其他模式无操作）
+            rdsLimiter.releaseIfNeeded();
             long end = System.currentTimeMillis();
             log.info("[rdsLimit] cost {}", (end - begin));
         }

@@ -13,6 +13,41 @@ public interface RdsLimitConfig {
     //窗口时间
     long getBoxTime();// default 5L;
 
+    //令牌桶容量（令牌桶算法专用）
+    default int getTokenCapacity() {
+        return 100;
+    }
+
+    //令牌填充速率（令牌/秒，令牌桶算法专用）
+    default int getTokenRate() {
+        return 10;
+    }
+
+    //每次请求消耗的令牌数（令牌桶算法专用）
+    default int getTokenPermits() {
+        return 1;
+    }
+
+    //最大并发许可数（信号量算法专用）
+    default int getSemaphorePermits() {
+        return 20;
+    }
+
+    //信号量超时时间（毫秒，信号量算法专用）
+    default long getSemaphoreTimeout() {
+        return 60000;
+    }
+
+    //窗口内最大请求数（信号量+窗口算法专用，0=不限制）
+    default int getSemaphoreWindowLen() {
+        return 0;
+    }
+
+    //窗口时间大小（毫秒，信号量+窗口算法专用）
+    default long getSemaphoreWindowTime() {
+        return 60000;
+    }
+
     //获取限流的超时时间
     long getTimeout();
 
@@ -76,12 +111,12 @@ public interface RdsLimitConfig {
                 }
                 //如果全部匹配成功
                 if (!notMatch && !key.toString().isEmpty()) {
-                    return new DLimiter().setKey(key.toString()).setBoxLen(interval).setBoxTime(boxTime).setLimited(true);
+                    return new SlidingWindowDLimiter().setKey(key.toString()).setBoxLen(interval).setBoxTime(boxTime).setLimited(true);
                 }
             }
         }
         //不需要限流
-        return new DLimiter().setLimited(false);
+        return new SlidingWindowDLimiter().setLimited(false);
     }
 
 

@@ -5,6 +5,9 @@ import cn.hutool.extra.spring.SpringUtil;
 import com.lingfengx.mid.dynamic.limiter.algo.Limiter;
 import com.lingfengx.mid.dynamic.limiter.algo.LimiterAlgo;
 import com.lingfengx.mid.dynamic.limiter.algo.SlidingWindowLimiter;
+import com.lingfengx.mid.dynamic.limiter.algo.TokenRateLimiter;
+import com.lingfengx.mid.dynamic.limiter.algo.SemaphoreLimiter;
+import com.lingfengx.mid.dynamic.limiter.algo.SemaphoreWindowLimiter;
 import com.lingfengx.mid.dynamic.limiter.util.ExceptionUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.DefaultParameterNameDiscoverer;
@@ -28,6 +31,11 @@ public class RdsLimiter {
     private static final ExpressionParser parser = new SpelExpressionParser();
     private static final DefaultParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
+    /**
+     * ThreadLocal 存储信号量上下文，用于执行完成后释放
+     */
+    private static final ThreadLocal<SemaphoreContext> SEMAPHORE_HOLDER = new ThreadLocal<>();
+
     private DynamicRedisLimiter dynamicRedisLimiter;
     public static boolean isSpringContext = true;
 
@@ -42,7 +50,6 @@ public class RdsLimiter {
         RdsLimitConfig config = getConfig(rdsLimit, self);
         boolean enable = getEnable(rdsLimit, config);
         if (enable) {
-            //&& !jump(config)
             //获取静态的key
             String key = getKey(rdsLimit, config);
             //解析key支持spel
@@ -54,38 +61,122 @@ public class RdsLimiter {
             //动态获取redis的key
             DLimiter dLimiter = getLimiter(config, params);
 
-            key = getRealKey(config, key, params);
-            int boxLen = getBoxLen(rdsLimit, config);
-            long boxTime = getBoxTime(rdsLimit, config);
-            //优先使用dLimiter
+            // 如果有动态限流器，优先使用其配置
             if (dLimiter != null) {
                 if (!dLimiter.isLimited()) {
                     //不需要限流
                     return true;
                 }
+                // 使用动态限流器的算法类型
+                algo = dLimiter.getAlgo();
                 key = dLimiter.getKey();
-                boxLen = dLimiter.getBoxLen();
-                boxTime = dLimiter.getBoxTime();
+            } else {
+                key = getRealKey(config, key, params);
             }
-            boolean success = false;
-            String accessKey = null;
-            Limiter limiter = null;
-            try {
-                accessKey = UUID.randomUUID().toString();
-                limiter = dynamicRedisLimiter.switchLimiter(algo);
-                if (limiter instanceof SlidingWindowLimiter) {
-                    success = ((SlidingWindowLimiter) limiter).rdsLimit(key, boxLen, boxTime, accessKey);
-                } else {
-                    throw new RuntimeException("not support limiter");
-                }
-            } catch (Exception e) {
-                //限流异常的就直接走限流失败
-                log.error("[RdsLimit]find dynamicRedisLimiter error occur {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
-            }
-            //通过限流
-            return success;
+
+            // 根据算法类型分派处理
+            return doLimitByAlgo(algo, key, rdsLimit, config, dLimiter);
         }
         return true;
+    }
+
+    /**
+     * 根据算法类型执行限流
+     */
+    private boolean doLimitByAlgo(LimiterAlgo algo, String key, RdsLimit rdsLimit, RdsLimitConfig config, DLimiter dLimiter) {
+        boolean success = false;
+        String accessKey = UUID.randomUUID().toString();
+        Limiter limiter = null;
+        try {
+            limiter = dynamicRedisLimiter.getLimiter(algo);
+            
+            switch (algo) {
+                case SlidingWindow:
+                    int boxLen = dLimiter instanceof SlidingWindowDLimiter 
+                            ? ((SlidingWindowDLimiter) dLimiter).getBoxLen() 
+                            : getBoxLen(rdsLimit, config);
+                    long boxTime = dLimiter instanceof SlidingWindowDLimiter 
+                            ? ((SlidingWindowDLimiter) dLimiter).getBoxTime() 
+                            : getBoxTime(rdsLimit, config);
+                    success = ((SlidingWindowLimiter) limiter).rdsLimit(key, boxLen, boxTime, accessKey);
+                    break;
+                    
+                case TokenRate:
+                    int tokenCapacity = dLimiter instanceof TokenRateDLimiter 
+                            ? ((TokenRateDLimiter) dLimiter).getTokenCapacity() 
+                            : getTokenCapacity(rdsLimit, config);
+                    int tokenRate = dLimiter instanceof TokenRateDLimiter 
+                            ? ((TokenRateDLimiter) dLimiter).getTokenRate() 
+                            : getTokenRate(rdsLimit, config);
+                    int tokenPermits = dLimiter instanceof TokenRateDLimiter 
+                            ? ((TokenRateDLimiter) dLimiter).getTokenPermits() 
+                            : getTokenPermits(rdsLimit, config);
+                    success = ((TokenRateLimiter) limiter).rdsLimit(key, tokenCapacity, tokenRate, tokenPermits);
+                    break;
+                    
+                case Semaphore:
+                    int semaphorePermits = dLimiter instanceof SemaphoreDLimiter 
+                            ? ((SemaphoreDLimiter) dLimiter).getSemaphorePermits() 
+                            : getSemaphorePermits(rdsLimit, config);
+                    long semaphoreTimeout = dLimiter instanceof SemaphoreDLimiter 
+                            ? ((SemaphoreDLimiter) dLimiter).getSemaphoreTimeout() 
+                            : getSemaphoreTimeout(rdsLimit, config);
+                    success = ((SemaphoreLimiter) limiter).acquire(key, semaphorePermits, accessKey, semaphoreTimeout);
+                    if (success) {
+                        SEMAPHORE_HOLDER.set(new SemaphoreContext(key, accessKey, LimiterAlgo.Semaphore));
+                    }
+                    break;
+                    
+                case SemaphoreWindow:
+                    int swPermits = dLimiter instanceof SemaphoreWindowDLimiter 
+                            ? ((SemaphoreWindowDLimiter) dLimiter).getSemaphorePermits() 
+                            : getSemaphorePermits(rdsLimit, config);
+                    long swTimeout = dLimiter instanceof SemaphoreWindowDLimiter 
+                            ? ((SemaphoreWindowDLimiter) dLimiter).getSemaphoreTimeout() 
+                            : getSemaphoreTimeout(rdsLimit, config);
+                    int swWindowLen = dLimiter instanceof SemaphoreWindowDLimiter 
+                            ? ((SemaphoreWindowDLimiter) dLimiter).getSemaphoreWindowLen() 
+                            : getSemaphoreWindowLen(rdsLimit, config);
+                    long swWindowTime = dLimiter instanceof SemaphoreWindowDLimiter 
+                            ? ((SemaphoreWindowDLimiter) dLimiter).getSemaphoreWindowTime() 
+                            : getSemaphoreWindowTime(rdsLimit, config);
+                    success = ((SemaphoreWindowLimiter) limiter).acquire(key, swPermits, accessKey, swTimeout, swWindowLen, swWindowTime);
+                    if (success) {
+                        SEMAPHORE_HOLDER.set(new SemaphoreContext(key, accessKey, LimiterAlgo.SemaphoreWindow));
+                    }
+                    break;
+                    
+                default:
+                    throw new RuntimeException("not support limiter: " + algo);
+            }
+        } catch (Exception e) {
+            log.error("[RdsLimit]find dynamicRedisLimiter error occur {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
+        }
+        return success;
+    }
+
+    /**
+     * 释放限流资源（主要用于信号量模式）
+     * 应在 finally 中调用
+     */
+    public void releaseIfNeeded() {
+        SemaphoreContext context = SEMAPHORE_HOLDER.get();
+        if (context != null) {
+            try {
+                LimiterAlgo algo = context.getAlgo();
+                Limiter limiter = dynamicRedisLimiter.getLimiter(algo);
+                if (limiter instanceof SemaphoreLimiter) {
+                    ((SemaphoreLimiter) limiter).releaseSemaphore(context.getKey(), context.getRequestId());
+                } else if (limiter instanceof SemaphoreWindowLimiter) {
+                    ((SemaphoreWindowLimiter) limiter).releaseSemaphore(context.getKey(), context.getRequestId());
+                }
+            } catch (Exception e) {
+                log.error("[RdsLimit] release semaphore error: {} {}", e.getMessage(), ExceptionUtil.getMessage(e, 10));
+            } finally {
+                // 一定要清理 ThreadLocal，防止内存泄漏
+                SEMAPHORE_HOLDER.remove();
+            }
+        }
     }
 
     /**
@@ -241,6 +332,34 @@ public class RdsLimiter {
     private long getTimeout(RdsLimit rdsLimit, RdsLimitConfig config) {
         //Integer configData = readOtherConfig(rdsLimit, rdsLimit.DTimeout());
         return config == null ? rdsLimit.timeout() : config.getTimeout();
+    }
+
+    private int getTokenCapacity(RdsLimit rdsLimit, RdsLimitConfig config) {
+        return config == null ? rdsLimit.tokenCapacity() : config.getTokenCapacity();
+    }
+
+    private int getTokenRate(RdsLimit rdsLimit, RdsLimitConfig config) {
+        return config == null ? rdsLimit.tokenRate() : config.getTokenRate();
+    }
+
+    private int getTokenPermits(RdsLimit rdsLimit, RdsLimitConfig config) {
+        return config == null ? rdsLimit.tokenPermits() : config.getTokenPermits();
+    }
+
+    private int getSemaphorePermits(RdsLimit rdsLimit, RdsLimitConfig config) {
+        return config == null ? rdsLimit.semaphorePermits() : config.getSemaphorePermits();
+    }
+
+    public long getSemaphoreTimeout(RdsLimit rdsLimit, RdsLimitConfig config) {
+        return config == null ? rdsLimit.semaphoreTimeout() : config.getSemaphoreTimeout();
+    }
+
+    private int getSemaphoreWindowLen(RdsLimit rdsLimit, RdsLimitConfig config) {
+        return config == null ? rdsLimit.semaphoreWindowLen() : config.getSemaphoreWindowLen();
+    }
+
+    private long getSemaphoreWindowTime(RdsLimit rdsLimit, RdsLimitConfig config) {
+        return config == null ? rdsLimit.semaphoreWindowTime() : config.getSemaphoreWindowTime();
     }
 
 
